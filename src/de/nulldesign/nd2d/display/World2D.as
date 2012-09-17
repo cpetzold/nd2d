@@ -80,7 +80,11 @@ package de.nulldesign.nd2d.display {
 		protected var context3D:Context3D;
 		protected var stageID:uint;
 		protected var scene:Scene2D;
-		protected var frameRate:uint;
+
+		protected var dt:Number;
+		protected var maxDt:Number;
+		protected var accumulator:Number;
+
 		protected var isPaused:Boolean = false;
 		protected var bounds:Rectangle;
 		protected var lastFramesTime:Number = 0.0;
@@ -107,13 +111,33 @@ package de.nulldesign.nd2d.display {
 		 * @param stageID
 		 * @param renderProfile Context3DProfile that should be used. If you target < FP 11.4 just use the default "baselineConstrained"
 		 */
-		public function World2D(renderMode:String = Context3DRenderMode.AUTO, frameRate:uint = 60, bounds:Rectangle = null, stageID:uint = 0, renderProfile:String = "baselineConstrained") {
+		public function World2D(renderMode:String = Context3DRenderMode.AUTO, frameRate:uint = 60, minFrameRate:uint = 4, bounds:Rectangle = null, stageID:uint = 0, renderProfile:String = "baselineConstrained") {
 			this.renderMode = renderMode;
 			this.renderProfile = renderProfile;
-			this.frameRate = frameRate;
 			this.bounds = bounds;
 			this.stageID = stageID;
+
+			this.frameRate = frameRate;
+			this.minFrameRate = minFrameRate;
+			this.accumulator = 0.0;
+
 			addEventListener(Event.ADDED_TO_STAGE, addedToStage);
+		}
+
+		public function get frameRate():uint {
+			return 1 / this.dt;
+		}
+
+		public function set frameRate(frameRate:uint):void {
+			this.dt = 1 / frameRate;
+		}
+
+		public function get minFrameRate():uint {
+			return 1 / this.maxDt;
+		}
+
+		public function set minFrameRate(frameRate:uint):void {
+			this.maxDt = 1 / frameRate;
 		}
 
 		protected function addedToStage(event:Event):void {
@@ -250,29 +274,41 @@ package de.nulldesign.nd2d.display {
 
 			var t:Number = getTimer() * 0.001;
 			var elapsed:Number = t - lastFramesTime;
+			lastFramesTime = t;
 
-			if(scene && context3D && context3D.driverInfo != "Disposed") {
-				context3D.clear(scene.br, scene.bg, scene.bb, 1.0);
-
-				if(!isPaused) {
-					scene.stepNode(elapsed, t);
-				}
-
-				if(deviceWasLost) {
-					ShaderCache.getInstance().handleDeviceLoss();
-					scene.handleDeviceLoss();
-					deviceWasLost = false;
-				}
-
-				statsObject.totalDrawCalls = 0;
-				statsObject.totalTris = 0;
-
-				scene.drawNode(context3D, camera, false, statsObject);
-
-				context3D.present();
+			if (elapsed > maxDt) {
+				elapsed = maxDt;
 			}
 
-			lastFramesTime = t;
+			accumulator += elapsed;
+
+			while (accumulator >= dt) {
+
+				if(scene && context3D && context3D.driverInfo != "Disposed") {
+					context3D.clear(scene.br, scene.bg, scene.bb, 1.0);
+
+					if(!isPaused) {
+						scene.stepNode(dt, t);
+					}
+
+					if(deviceWasLost) {
+						ShaderCache.getInstance().handleDeviceLoss();
+						scene.handleDeviceLoss();
+						deviceWasLost = false;
+					}
+
+					statsObject.totalDrawCalls = 0;
+					statsObject.totalTris = 0;
+
+					scene.drawNode(context3D, camera, false, statsObject);
+
+					context3D.present();
+				}
+
+				t += dt;
+				accumulator -= dt;
+
+			}
 		}
 
 		public function setActiveScene(value:Scene2D):void {
