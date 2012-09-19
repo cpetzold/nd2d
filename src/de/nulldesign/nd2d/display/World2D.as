@@ -283,31 +283,33 @@ package de.nulldesign.nd2d.display {
 			accumulator += elapsed;
 
 			while (accumulator >= dt) {
-
-				if(scene && context3D && context3D.driverInfo != "Disposed") {
-					context3D.clear(scene.br, scene.bg, scene.bb, 1.0);
-
-					if(!isPaused) {
-						scene.stepNode(dt, t);
-					}
-
-					if(deviceWasLost) {
-						ShaderCache.getInstance().handleDeviceLoss();
-						scene.handleDeviceLoss();
-						deviceWasLost = false;
-					}
-
-					statsObject.totalDrawCalls = 0;
-					statsObject.totalTris = 0;
-
-					scene.drawNode(context3D, camera, false, statsObject);
-
-					context3D.present();
-				}
-
+				step(dt, t);
 				t += dt;
 				accumulator -= dt;
 
+			}
+		}
+
+		protected function step(dt:Number, t:Number):void {
+			if(scene && context3D && context3D.driverInfo != "Disposed") {
+				context3D.clear(scene.br, scene.bg, scene.bb, 1.0);
+
+				if(!isPaused) {
+					scene.stepNode(dt, t);
+				}
+
+				if(deviceWasLost) {
+					ShaderCache.getInstance().handleDeviceLoss();
+					scene.handleDeviceLoss();
+					deviceWasLost = false;
+				}
+
+				statsObject.totalDrawCalls = 0;
+				statsObject.totalTris = 0;
+
+				scene.drawNode(context3D, camera, false, statsObject);
+
+				context3D.present();
 			}
 		}
 
